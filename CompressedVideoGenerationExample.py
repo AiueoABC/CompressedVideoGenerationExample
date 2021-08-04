@@ -4,9 +4,10 @@ import cv2
 class Frames2Movie:
     def __init__(self):
         self.frames = []  # [(epochTime0, frame0), (epochTime1, frame1), ...]
-        self.fps = 60.  # target fps, this example handles a constant framerate video.
+        self.fps = 10.  # target fps, this example handles a constant framerate video.
         self.codec = 'h264'  # Using h264, to use more efficient codecs, like av1, pls compile opencv from its source.
-        self.filename = './Video.avi'
+        self.filename = './video.mp4'
+        self.timecodes_filename = './timecodes.txt'
 
     def convert2video(self):
         print('Start Encoding')
@@ -16,25 +17,21 @@ class Frames2Movie:
         _spf = 1 / self.fps
         _old_frame = ()
         _skipped_frames = 0
+        _time2fill = []
         for _frame in self.frames:
             if _old_frame == ():
                 _videowriter.write(_frame[1])
                 _old_frame = _frame
+                _time2fill.append(0.0)
             else:
-                _time2fill = _frame[0] - _old_frame[0]
-                if _time2fill >= _spf:
-                    _elapsed_time = 0.
-                    while _elapsed_time < _time2fill:
-                        _elapsed_time += _spf
-                        _videowriter.write(_old_frame[1])
-                    _old_frame = _frame
-                else:  # skipping in case set-fps is not enough for frames
-                    _skipped_frames += 1
-                    pass
+                _time2fill.append(_frame[0] - _old_frame[0])
+                _videowriter.write(_frame[1])
+
         _videowriter.release()
+        with open(self.timecodes_filename, 'w') as f:
+            f.writelines(_time2fill)
         print(f'''Finish Encoding:
     Processed Frames: {len(self.frames)}
-    Duplicated frames: {_skipped_frames}
     Recorded FPS: {self.fps}
     Saved Path: {self.filename}''')
 
@@ -63,7 +60,8 @@ if __name__ == '__main__':
         print(f"Finish Recording #{count}")
 
         videomaker.frames = frames
-        videomaker.filename = f'./video_{count}.avi'
+        videomaker.filename = f'./video_{count}.mp4'
+        videomaker.timecodes_filename = f'./timecodes_{count}.txt'
 
         thread = threading.Thread(target=videomaker.convert2video)
         thread.start()
